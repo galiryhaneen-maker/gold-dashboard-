@@ -24,7 +24,7 @@ risk_pct = st.sidebar.slider("المخاطرة %:", 0.5, 5.0, 1.0)
 period_map = {"1m":"1d","5m":"5d","15m":"5d","30m":"1mo","1h":"3mo","4h":"6mo","1d":"1y","1wk":"5y","1mo":"10y"}
 interval_map = {"1m":"1m","5m":"5m","15m":"15m","30m":"30m","1h":"60m","4h":"60m","1d":"1d","1wk":"1wk","1mo":"1mo"}
 
-def def get_data(interval, period):
+def get_data(interval, period):
     import io
     import requests
     import pandas as pd
