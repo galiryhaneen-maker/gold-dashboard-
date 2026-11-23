@@ -89,4 +89,5 @@ if ex and fut:
     st.caption(f"Spread Futures - Spot: ${diff:,.2f}")
 
 # --- UI: CHART ---
-tf = st.selectbox("Timeframe", ["1m", "5m", "15m", "30m", "
+tf_list = ["1m", "5m", "15m", "30m", "1h", "4h", "1d", "1wk", "1mo"]
+tf = st.selectbox("Timeframe", tf_list, index=4)
