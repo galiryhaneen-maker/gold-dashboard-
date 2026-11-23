@@ -65,7 +65,59 @@ def add_heikin(df):
     return df
 
 def analyze_news(title):
+
     text = title.lower()
     score = 0
     reason = ""
-    pos = {"rate cut":2,"central bank buys":2,"safe haven
+    pos = {}
+    pos["rate cut"] = 2
+    pos["central bank buys"] = 2
+    pos["safe haven"] = 2
+    pos["gold rallies"] = 2
+    pos["gold jumps"] = 2
+    pos["gold surges"] = 2
+    pos["war"] = 2
+    pos["crisis"] = 2
+    pos["recession"] = 1.5
+    pos["dollar falls"] = 1.5
+    pos["gold gains"] = 1.5
+    pos["gold rises"] = 1.5
+    pos["record high"] = 2
+    neg = {}
+    neg["rate hike"] = -2
+    neg["hike bets"] = -2
+    neg["hawkish"] = -2
+    neg["gold slides"] = -2
+    neg["gold falls"] = -2
+    neg["gold drops"] = -2
+    neg["selloff"] = -2
+    neg["under pressure"] = -2
+    neg["strong dollar"] = -1.5
+    neg["dollar rises"] = -1
+    neg["gold tumbles"] = -2
+    neg["gold plunges"] = -2
+    neg["profit-taking"] = -1.5
+    for p,w in pos.items():
+        if p in text:
+            score += w
+            reason += p + " "
+    for p,w in neg.items():
+        if p in text:
+            score += w
+            reason += p + " "
+    if score == 0:
+        if any(w in text for w in ["falls","drops","slides","losses","pressure","hurt","down"]):
+            score = -1
+            reason = "كلمة هبوط"
+        elif any(w in text for w in ["rises","jumps","surges","gains","rebound","up"]):
+            score = 1
+            reason = "كلمة صعود"
+        else:
+            reason = "محايد"
+    if score > 0.5:
+        label = "ايجابي"
+    elif score < -0.5:
+        label = "سلبي"
+    else:
+        label = "محايد"
+    return score, label, reason
