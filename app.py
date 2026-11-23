@@ -24,20 +24,42 @@ risk_pct = st.sidebar.slider("المخاطرة %:", 0.5, 5.0, 1.0)
 period_map = {"1m":"1d","5m":"5d","15m":"5d","30m":"1mo","1h":"3mo","4h":"6mo","1d":"1y","1wk":"5y","1mo":"10y"}
 interval_map = {"1m":"1m","5m":"5m","15m":"15m","30m":"30m","1h":"60m","4h":"60m","1d":"1d","1wk":"1wk","1mo":"1mo"}
 
-def get_data(interval, period):
-    if interval == "4h":
-        df = yf.download("GC=F", interval="60m", period=period, progress=False, auto_adjust=True)
-        df.columns = df.columns.get_level_values(0)
-        df = df.reset_index()
-        df = df.rename(columns={"Datetime":"Date"})
-        df = df.set_index("Date").resample("4h").agg({"Open":"first","High":"max","Low":"min","Close":"last"}).dropna().reset_index()
-        return df
-    df = yf.download("GC=F", interval=interval, period=period, progress=False, auto_adjust=True)
-    df.columns = df.columns.get_level_values(0)
-    df = df.reset_index()
-    date_col = [c for c in df.columns if "Date" in str(c)][0]
-    df = df.rename(columns={date_col:"Date"})
-    return df
+def def get_data(interval, period):
+    import io
+    import requests
+    import pandas as pd
+    url = "https://stooq.com/q/d/l/"
+    url += "?s=gc.f.us&i="
+    url += interval
+    try:
+        r = requests.get(url, timeout=10)
+        df = pd.read_csv(io.StringIO(r.text))
+        df = df.rename(columns={"Date": "Date"})
+        df["Date"] = pd.to_datetime(df["Date"])
+        df = df.set_index("Date")
+        df = df.rename(columns={"Open": "Open"})
+        df = df.rename(columns={"High": "High"})
+        df = df.rename(columns={"Low": "Low"})
+        df = df.rename(columns={"Close": "Close"})
+        return df.tail(200)
+    except:
+        return None
+
+def get_live_price():
+    import requests
+    import re
+    try:
+        url = "https://www.google.com/finance/"
+        url += "quote/COMEX:GCZ25"
+        h = {"User-Agent": "Mozilla/5.0"}
+        r = requests.get(url, headers=h, timeout=8)
+        m = re.search(r'"lastPrice[^0-9]*([0-9,]+\.[0-9]+)', r.text)
+        if m:
+            p = m.group(1).replace(",", "")
+            return float(p)
+    except:
+        pass
+    return None
 
 def add_heikin(df):
     df = df.copy()
