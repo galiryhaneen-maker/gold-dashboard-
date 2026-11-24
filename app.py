@@ -53,13 +53,14 @@ if tf_choice == "4h": tf_p = "1mo"; tf_i = "1h"
 if tf_choice == "1d": tf_p = "3mo"; tf_i = "1d"
 chart_res = analyze_tf(tf_p, tf_i)
 chart_data = chart_res["df"]
-fig = go.Figure(data=[go.Candlestick(x=chart_data.index, open=chart_data["Open"], high=chart_data["High"], low=chart_data["Low"], close=chart_data["Close"])])
-fig.add_hline(y=chart_res["last"], line_color="blue", annotation_text="دخول " + str(round(chart_res["last"], 2)))
-fig.add_hline(y=chart_res["sl"], line_color="red", annotation_text="ستوب " + str(round(chart_res["sl"], 2)))
-fig.add_hline(y=chart_res["tp1"], line_color="green", annotation_text="هدف 1 " + str(round(chart_res["tp1"], 2)))
-fig.add_hline(y=chart_res["tp2"], line_color="green", annotation_text="هدف 2 " + str(round(chart_res["tp2"], 2)))
-fig.add_hline(y=chart_res["tp3"], line_color="green", annotation_text="هدف 3 " + str(round(chart_res["tp3"], 2)))
-fig.update_layout(title="الذهب - " + tf_choice, yaxis_title="السعر", height=500)
+fig.add_hline(y=chart_res["last"], line_color="blue", line_dash="dash", annotation_text="دخول " + str(round(chart_res["last"], 2)), annotation_position="top left")
+fig.add_hline(y=chart_res["sl"], line_color="red", line_dash="dash", annotation_text="ستوب " + str(round(chart_res["sl"], 2)), annotation_position="bottom left")
+fig.add_hline(y=chart_res["tp1"], line_color="green", line_dash="dash", annotation_text="هدف 1 " + str(round(chart_res["tp1"], 2)), annotation_position="top left")
+fig.add_hline(y=chart_res["tp2"], line_color="green", line_dash="dash", annotation_text="هدف 2 " + str(round(chart_res["tp2"], 2)), annotation_position="bottom left")
+fig.add_hline(y=chart_res["tp3"], line_color="green", line_dash="dash", annotation_text="هدف 3 " + str(round(chart_res["tp3"], 2)), annotation_position="top left")
+y_low = min(chart_res["sl"], chart_res["tp1"], chart_res["tp2"], chart_res["tp3"], chart_res["last"]) - chart_res["atr"]
+y_high = max(chart_res["sl"], chart_res["tp1"], chart_res["tp2"], chart_res["tp3"], chart_res["last"]) + chart_res["atr"]
+fig.update_layout(title="الذهب - " + tf_choice, yaxis_title="السعر", height=600, yaxis=dict(range=[y_low, y_high]))
 st.plotly_chart(fig, use_container_width=True)  
 st.subheader("تفاصيل الاخبار")
 econ_news = [e.title for e in feedparser.parse("https://news.google.com/rss/search?q=gold+price&hl=en-US&gl=US&ceid=US:en").entries[:5]]
