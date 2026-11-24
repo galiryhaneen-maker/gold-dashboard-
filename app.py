@@ -27,7 +27,7 @@ if st.button("تحديث", use_container_width=True):
 
 now_txt = datetime.now().strftime("%H:%M:%S")
 st.write("اخر تحديث: " + now_txt)
-st.title("Gold Pro - كل الفريمات")
+st.title("Gold Pro - 3 جداول")
 
 def get_news(url):
     feed = feedparser.parse(url)
@@ -76,10 +76,6 @@ st.subheader("اخبار الذهب")
 st.write("اقتصادية: ايجابي " + str(eco_pos) + " - سلبي " + str(eco_neg))
 st.write("سياسية: ايجابي " + str(pol_pos) + " - سلبي " + str(pol_neg))
 st.info("مجموع الاخبار: " + news_score)
-for e in feed_eco.entries[:3]:
-    st.write("- " + e.title)
-for e in feed_pol.entries[:3]:
-    st.write("- " + e.title)
 
 st.subheader("حاسبة اللوت")
 balance = st.number_input("رصيدك", value=1000, min_value=10)
@@ -113,86 +109,4 @@ def analyze_tf(period, interval):
     c0_h = float(high.iloc[-1])
     c0_l = float(low.iloc[-1])
     c1_o = float(open_p.iloc[-2])
-    c1_c = float(close.iloc[-2])
-    body0 = abs(c0_c - c0_o)
-    range0 = c0_h - c0_l
-    up_wick = c0_h - max(c0_o, c0_c)
-    low_wick = min(c0_o, c0_c) - c0_l
-    pattern = "بدون نمط"
-    pscore = 0
-    if c1_c < c1_o and c0_c > c0_o and c0_c > c1_o and c0_o < c1_c:
-        pattern = "ابتلاع صاعد"
-        pscore = 2
-    elif c1_c > c1_o and c0_c < c0_o and c0_c < c1_o and c0_o > c1_c:
-        pattern = "ابتلاع هابط"
-        pscore = -2
-    elif low_wick > body0 * 2 and up_wick < body0 * 0.5:
-        pattern = "مطرقة"
-        pscore = 1.5
-    elif up_wick > body0 * 2 and low_wick < body0 * 0.5:
-        pattern = "شهاب"
-        pscore = -1.5
-    elif body0 < range0 * 0.1:
-        pattern = "دوجي"
-        pscore = 0
-    swing_low = float(low.tail(10).min())
-    swing_high = float(high.tail(10).max())
-    score = pscore
-    if rsi_last < 30:
-        score = score + 1.5
-    if rsi_last > 70:
-        score = score - 1.5
-    if news_score == "ايجابي":
-        score = score + 1
-    if news_score == "سلبي":
-        score = score - 1
-    if last > ma20:
-        score = score + 0.5
-    else:
-        score = score - 0.5
-    # ===== سبب الدخول =====
-    reasons = []
-    if pattern != "بدون نمط":
-        reasons.append(pattern)
-    if rsi_last < 30:
-        reasons.append("RSI تشبع بيع")
-    if rsi_last > 70:
-        reasons.append("RSI تشبع شراء")
-    if rsi_last >= 30 and rsi_last <= 70:
-        reasons.append("RSI متوازن")
-    if news_score == "ايجابي":
-        reasons.append("اخبار ايجابية")
-    if news_score == "سلبي":
-        reasons.append("اخبار سلبية")
-    if news_score == "محايد":
-        reasons.append("اخبار محايدة")
-    if last > ma20:
-        reasons.append("فوق MA20")
-    else:
-        reasons.append("تحت MA20")
-    reason_txt = " + ".join(reasons)
-    if score >= 1:
-        direction = "شراء BUY"
-        sl = swing_low - atr * 0.5
-        sl_dist = abs(last - sl)
-        tp1 = last + sl_dist * 1.5
-        tp2 = last + sl_dist * 2.5
-        tp3 = last + sl_dist * 4.0
-    elif score <= -1:
-        direction = "بيع SELL"
-        sl = swing_high + atr * 0.5
-        sl_dist = abs(last - sl)
-        tp1 = last - sl_dist * 1.5
-        tp2 = last - sl_dist * 2.5
-        tp3 = last - sl_dist * 4.0
-    else:
-        direction = "انتظار WAIT"
-        sl = swing_low - atr * 0.5
-        sl_dist = abs(last - sl)
-        tp1 = last + sl_dist * 1.0
-        tp2 = last + sl_dist * 2.0
-        tp3 = last + sl_dist * 3.0
-        reason_txt = reason_txt + " = لا يوجد توافق"
-    lot_raw = risk_money / (sl_dist * 100)
-    lot = round(lot_raw, 2)
-    lot = max(lot, 1 / 100)
+    c1_c = float
