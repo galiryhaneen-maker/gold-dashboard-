@@ -141,4 +141,5 @@ if st.session_state.get("show3", False):
     show_table("جدول 3 - طويل", [("1d", "3mo", "1d"), ("1wk", "1y", "1wk"), ("1mo", "5y", "1mo")])
 st.markdown("---")
 st.subheader("شارت واحد")
-timeframe = st.selectbox("اختار فريم", ["1m", "5m", "15m", "30m", "1h", "4h", "
+frames_list = "1m 5m 15m 30m 1h 4h 1d 1wk 1mo".split()
+timeframe = st.selectbox("اختار فريم", frames_list, index=4)
