@@ -8,6 +8,23 @@ import matplotlib.pyplot as plt
 import time
 
 st.set_page_config(page_title="Gold Pro", layout="wide")
+
+# --- PASSWORD GATE ---
+if "auth" not in st.session_state:
+    st.session_state.auth = False
+
+if not st.session_state.auth:
+    st.title("🔒 Private Dashboard")
+    pwd = st.text_input("Enter Password", type="password")
+    if st.button("Login"):
+        if pwd == st.secrets["PASSWORD"]:
+            st.session_state.auth = True
+            st.rerun()
+        else:
+            st.error("Wrong password!")
+    st.stop()
+# --- END GATE ---
+st.set_page_config(page_title="Gold Pro", layout="wide")
 st.title("🏆 شاشة الذهب Pro")
 if st.button("🔄 حدث هلأ"):
     st.rerun()
