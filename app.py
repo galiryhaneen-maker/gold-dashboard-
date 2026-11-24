@@ -53,6 +53,19 @@ if tf_choice == "4h": tf_p = "1mo"; tf_i = "1h"
 if tf_choice == "1d": tf_p = "3mo"; tf_i = "1d"
 chart_res = analyze_tf(tf_p, tf_i)
 chart_data = chart_res["df"]
+close_c = chart_data["Close"].astype(float)
+delta_c = close_c.diff()
+gain_c = delta_c.where(delta_c > 0, 0).rolling(14).mean()
+loss_c = -delta_c.where(delta_c < 0, 0).rolling(14).mean()
+rs_c = gain_c / loss_c.replace(0, 0.00001)
+rsi_v = float(100 - (100 / (1 + rs_c.iloc[-1])))
+ema12_c = close_c.ewm(span=12).mean()
+ema26_c = close_c.ewm(span=26).mean()
+macd_v = float(ema12_c.iloc[-1] - ema26_c.iloc[-1])
+sig_v = float((ema12_c - ema26_c).ewm(span=9).mean().iloc[-1])
+rsi_txt = "مشبع شراء - لا تشتري" if rsi_v > 70 else "مشبع بيع - فرصة شراء" if rsi_v < 30 else "عادي"
+macd_txt = "صاعد" if macd_v > sig_v else "هابط"
+st.warning(f"RSI: {rsi_v:.1f} - {rsi_txt} | MACD: {macd_v:.2f} - {macd_txt}")
 fig = go.Figure(data=[go.Candlestick(x=chart_data.index, open=chart_data["Open"], high=chart_data["High"], low=chart_data["Low"], close=chart_data["Close"])])
 fig.add_hline(y=chart_res["last"], line_color="blue", line_width=3, line_dash="dash", annotation_text="دخول " + str(round(chart_res["last"], 2)), annotation_position="top left", annotation_font_size=16, annotation_font_color="black", annotation_bgcolor="white")
 fig.add_hline(y=chart_res["sl"], line_color="red", line_width=3, line_dash="dash", annotation_text="ستوب " + str(round(chart_res["sl"], 2)), annotation_position="bottom left", annotation_font_size=16, annotation_font_color="black", annotation_bgcolor="white")
@@ -70,3 +83,31 @@ st.write("اقتصادية:")
 for t in econ_news[:5]: st.write("- " + t)
 st.write("سياسية:")
 for t in pol_news[:5]: st.write("- " + t)
+st.subheader("💰 حاسبة الربح والخسارة")
+c1, c2, c3, c4 = st.columns(4)
+calc_entry = c1.number_input("سعر الدخول:", value=float(main['entry']) if main else 3500.0)
+calc_sl = c2.number_input("الستوب:", value=float(main['sl']) if main else 3480.0)
+calc_tp = c3.number_input("الهدف:", value=float(main['tp1']) if main else 3520.0)
+calc_lot = c4.number_input("اللوت:", value=float(main['lot']) if main else 0.10)
+if calc_tp > calc_entry:
+calc_profit = (calc_tp - calc_entry) * 100 * calc_lot
+calc_loss = (calc_entry - calc_sl) * 100 * calc_lot
+else:
+calc_profit = (calc_entry - calc_tp) * 100 * calc_lot
+calc_loss = (calc_sl - calc_entry) * 100 * calc_lot
+st.success(f"✅ إذا ضرب الهدف: ربح **{calc_profit:.2f}$** | ❌ إذا ضرب الستوب: خسارة **{calc_loss:.2f}$** | النسبة: **{calc_profit/max(calc_loss,0.01):.1f} : 1**")st.subheader("📅 أخبار اليوم المهمة - لا تدخل قبل خبر قوي")
+try:
+    import feedparser as fp2
+    cal = fp2.parse("https://nfs.faireconomy.media/ff_calendar_thisweek.xml")
+    found = 0
+    for e in cal.entries:
+        title = e.title if hasattr(e, 'title') else ""
+        if "USD" in title and ("High" in title or "high" in title.lower()):
+            st.warning(f"🔴 {e.title} - {e.published if hasattr(e, 'published') else ''}")
+            found += 1
+            if found >= 5:
+                break
+    if found == 0:
+        st.info("ما في أخبار قوية بالدولار اليوم - السوق هادي")
+except:
+    st.info("ما قدرنا نجيب التقويم هلأ - فوت على ForexFactory قبل ما تدخل")
