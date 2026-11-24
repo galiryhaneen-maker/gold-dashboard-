@@ -21,7 +21,6 @@ if not st.session_state.auth:
             st.error("كلمة السر غلط")
     st.stop()
 
-# ===== زر التحديث =====
 top1, top2 = st.columns([1, 4])
 with top1:
     if st.button("تحديث 🔄", use_container_width=True):
@@ -56,6 +55,15 @@ rsi_last = float(rsi.iloc[-1])
 ma20 = float(close.rolling(20).mean().iloc[-1])
 ma50 = float(close.rolling(50).mean().iloc[-1]) if len(close) > 50 else ma20
 
+# ATR - مشان الستوب والاهداف يكونو منطقيين
+high_low = df["High"] - df["Low"]
+high_close = (df["High"] - close.shift()).abs()
+low_close = (df["Low"] - close.shift()).abs()
+tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+atr = float(tr.rolling(14).mean().iloc[-1])
+if atr < 5:
+    atr = 15.0
+
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("سعر الذهب", f"${last:,.2f}", f"{change:+.2f} ({pct:+.2f}%)")
 c2.metric("RSI", f"{rsi_last:.0f}")
@@ -68,17 +76,15 @@ fig.add_trace(go.Scatter(x=df.index, y=close.rolling(50).mean(), line=dict(color
 fig.update_layout(height=450, xaxis_rangeslider_visible=False, template="plotly_white")
 st.plotly_chart(fig, use_container_width=True)
 
-support = float(df["Low"].tail(30).min())
-resistance = float(df["High"].tail(30).max())
-risk_range = abs(last - support) if last > support else abs(resistance - last)
-if risk_range < 5:
-    risk_range = 15
+# دعم ومقاومة من اخر 20 شمعة بس - مو 3 شهور
+support = float(df["Low"].tail(20).min())
+resistance = float(df["High"].tail(20).max())
 
-st.subheader("تقييم الاخبار")
-feed = feedparser.parse("https://www.investing.com/rss/news_285.rss")
+st.subheader("تقييم الاخبار - ذهب فقط")
+feed = feedparser.parse("https://news.google.com/rss/search?q=gold+price&hl=en&gl=US&ceid=US:en")
 news_text = " ".join([e.title for e in feed.entries[:8]])
-pos_words = ["rise", "surge", "gain", "bullish", "record", "up", "higher", "strong", "rally"]
-neg_words = ["fall", "drop", "bearish", "down", "lower", "weak", "decline", "crash"]
+pos_words = ["rise", "surge", "gain", "bullish", "record", "up", "higher", "strong", "rally", "jump"]
+neg_words = ["fall", "drop", "bearish", "down", "lower", "weak", "decline", "crash", "plunge"]
 pos = sum(1 for w in pos_words if w.lower() in news_text.lower())
 neg = sum(1 for w in neg_words if w.lower() in news_text.lower())
 if pos > neg:
@@ -98,24 +104,24 @@ is_buy = (last > ma20 and rsi_last < 70) or (news_score == "ايجابي" and la
 is_sell = (last < ma20 and rsi_last > 30) or (news_score == "سلبي" and last < ma20)
 if is_buy:
     entry = last
-    sl = support
-    tp1 = last + risk_range * 1.0
-    tp2 = last + risk_range * 2.0
-    tp3 = resistance if resistance > last else last + risk_range * 3.0
+    sl = last - atr * 1.5
+    tp1 = last + atr * 1.5
+    tp2 = last + atr * 3.0
+    tp3 = last + atr * 4.5
     st.success("شراء BUY - الدخول الان")
 elif is_sell:
     entry = last
-    sl = resistance
-    tp1 = last - risk_range * 1.0
-    tp2 = last - risk_range * 2.0
-    tp3 = support if support < last else last - risk_range * 3.0
+    sl = last + atr * 1.5
+    tp1 = last - atr * 1.5
+    tp2 = last - atr * 3.0
+    tp3 = last - atr * 4.5
     st.error("بيع SELL - الدخول الان")
 else:
     entry = last
-    sl = support
-    tp1 = last + risk_range * 0.5
-    tp2 = resistance
-    tp3 = resistance + risk_range
+    sl = last - atr * 1.5
+    tp1 = last + atr * 1.0
+    tp2 = last + atr * 2.0
+    tp3 = last + atr * 3.0
     st.warning("انتظار - لا تدخل هلأ، السوق متذبذب")
 
 sc1, sc2, sc3, sc4, sc5 = st.columns(5)
@@ -124,21 +130,22 @@ sc2.metric("وقف الخسارة", f"${sl:,.2f}")
 sc3.metric("سحب ارباح 1", f"${tp1:,.2f}")
 sc4.metric("سحب ارباح 2", f"${tp2:,.2f}")
 sc5.metric("سحب ارباح 3", f"${tp3:,.2f}")
-st.info(f"الدعم: ${support:,.2f} | المقاومة: ${resistance:,.2f} | MA20: ${ma20:,.2f}")
+st.info(f"الدعم: ${support:,.2f} | المقاومة: ${resistance:,.2f} | ATR: ${atr:.2f} | MA20: ${ma20:,.2f}")
 
 st.subheader("حاسبة اللوت")
 lc1, lc2, lc3 = st.columns(3)
 with lc1:
-    balance = st.number_input("رصيدك $", value=1000, min_value=10)
+    balance = st.number_input("رصيدك $", value=1000, min_value=10, key="bal")
 with lc2:
-    risk_pct = st.slider("مخاطرة %", 0.5, 5.0, 1.0)
+    risk_pct = st.slider("مخاطرة %", 0.5, 5.0, 1.0, key="risk")
 with lc3:
-    sl_dist = st.number_input("مسافة الستوب $", value=abs(entry - sl) if abs(entry - sl) > 1 else 15.0, min_value=0.5)
+    sl_dist = st.number_input("مسافة الستوب $", value=float(abs(entry - sl)), min_value=0.5, key="sldist")
 risk_money = balance * (risk_pct / 100)
 lot = risk_money / (sl_dist * 100) if sl_dist > 0 else 0
-st.info(f"اللوت: {lot:.2f} | رح تخسر اذا ضرب ستوب: ${risk_money:.2f} | الربح المتوقع عند هدف 1: ${lot * abs(tp1 - entry) * 100:,.2f}")
+# هون التصليح: 4 ارقام بعد الفاصلة مشان يبين حتى لو رصيدك صغير
+st.success(f"اللوت: {lot:.4f} | رح تخسر اذا ضرب ستوب: ${risk_money:.2f} | الربح المتوقع عند هدف 1: ${lot * abs(tp1 - entry) * 100:,.2f}")
+st.caption(f"رصيدك: ${balance} | مخاطرة: {risk_pct}% = ${risk_money:.2f} | مسافة الستوب: ${sl_dist:.2f}")
 
-# زر تحديث تحت كمان مشان ما تطلع لفوق
 if st.button("تحديث الصفحة 🔄", use_container_width=True):
     st.cache_data.clear()
     st.rerun()
