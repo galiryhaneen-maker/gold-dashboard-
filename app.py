@@ -91,7 +91,7 @@ calc_tp = c3.number_input("الهدف:", value=float(main['tp1']) if main else 3
 calc_lot = c4.number_input("اللوت:", value=float(main['lot']) if main else 0.10)
 calc_profit = abs(calc_tp - calc_entry) * 100 * calc_lot
 calc_loss = abs(calc_entry - calc_sl) * 100 * calc_lot
-st.success(f"✅ إذا ضرب الهدف: ربح **{calc_profit:.2f}$** | ❌ إذا ضرب الستوب: خسارة **{calc_loss:.2f}$** | النسبة: **{calc_profit/max(calc_loss,0.01):.1f} : 1**")st.subheader("📅 أخبار اليوم المهمة - لا تدخل قبل خبر قوي")
+st.success("ربح الهدف: " + str(round(calc_profit, 2)) + " $ | خسارة الستوب: " + str(round(calc_loss, 2)) + " $")
 try:
     import feedparser as fp2
     cal = fp2.parse("https://nfs.faireconomy.media/ff_calendar_thisweek.xml")
