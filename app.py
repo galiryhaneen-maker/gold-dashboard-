@@ -41,3 +41,22 @@ if st.session_state.get("show2", False): st.subheader("جدول 2 - يومي"); 
 if st.button("حساب جدول الطويل", use_container_width=True): st.session_state.show3 = True
 if st.session_state.get("show3", False): st.subheader("جدول 3 - طويل"); d = [analyze_tf(p, i) for n, p, i in [("1d", "3mo", "1d"), ("1wk", "1y", "1wk"), ("1mo", "5y", "1mo")]]
 if st.session_state.get("show3", False): rows = [[n, r["direction"], round(r["last"], 2), round(r["sl"], 2), round(r["tp1"], 2), round(r["tp2"], 2), round(r["tp3"], 2), r["lot"], round(r["rsi"], 0), r["reason"]] for (n, p, i), r in zip([("1d", "3mo", "1d"), ("1wk", "1y", "1wk"), ("1mo", "5y", "1mo")], d)]; st.dataframe(pd.DataFrame(rows, columns=["الفريم", "الاتجاه", "السعر", "الستوب", "هدف 1", "هدف 2", "هدف 3", "اللوت", "RSI", "سبب الدخول"]), use_container_width=True)
+st.subheader("تفاصيل الاخبار")
+st.write("اقتصادية:")
+for t in econ_news[:5]: st.write("- " + t)
+st.write("سياسية:")
+for t in pol_news[:5]: st.write("- " + t)
+st.subheader("الشارت - الشموع اليابانية")
+tf_choice = st.selectbox("اختار الفريم", ["1m", "5m", "15m", "1h", "4h", "1d"], index=3)
+tf_p = "5d"
+tf_i = "1h"
+if tf_choice == "1m": tf_p = "1d"; tf_i = "1m"
+if tf_choice == "5m": tf_p = "1d"; tf_i = "5m"
+if tf_choice == "15m": tf_p = "5d"; tf_i = "15m"
+if tf_choice == "1h": tf_p = "5d"; tf_i = "1h"
+if tf_choice == "4h": tf_p = "1mo"; tf_i = "1h"
+if tf_choice == "1d": tf_p = "3mo"; tf_i = "1d"
+chart_data = analyze_tf(tf_p, tf_i)["df"]
+fig = go.Figure(data=[go.Candlestick(x=chart_data.index, open=chart_data["Open"], high=chart_data["High"], low=chart_data["Low"], close=chart_data["Close"])])
+fig.update_layout(title="الذهب - " + tf_choice, yaxis_title="السعر", height=500)
+st.plotly_chart(fig, use_container_width=True)  
