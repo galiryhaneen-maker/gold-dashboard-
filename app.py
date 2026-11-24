@@ -1,10 +1,29 @@
 import streamlit as st
 import pandas as pd
+import streamlit as st
+import yfinance as yf
+import pandas as pd
 import numpy as np
-import requests
-import io
-import time
+import feedparser
 from datetime import datetime
+import matplotlib.pyplot as plt
+import time
+
+# --- PASSWORD GATE ---
+if "auth" not in st.session_state:
+    st.session_state.auth = False
+
+if not st.session_state.auth:
+    st.title("🔒 Private Dashboard")
+    pwd = st.text_input("Enter Password", type="password")
+    if st.button("Login"):
+        if pwd == st.secrets["PASSWORD"]:
+            st.session_state.auth = True
+            st.rerun()
+        else:
+            st.error("Wrong password!")
+    st.stop()
+# --- END GATE --- 
 
 st.set_page_config(page_title="Gold Dashboard", layout="wide")
 st.title("GOLD DASHBOARD - XAU/USD")
