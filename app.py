@@ -56,8 +56,9 @@ fig = go.Figure(data=[go.Candlestick(x=chart_data.index, open=chart_data["Open"]
 fig.update_layout(title="الذهب - " + tf_choice, yaxis_title="السعر", height=500)
 st.plotly_chart(fig, use_container_width=True)  
 st.subheader("تفاصيل الاخبار")
-econ_news, _, _ = get_news("https://news.google.com/rss/search?q=gold+price&hl=en-US&gl=US&ceid=US:en")
-pol_news, _, _ = get_news("https://news.google.com/rss/search?q=Trump+tariffs+gold&hl=en-US&gl=US&ceid=US:en")
+econ_news = [e.title for e in feedparser.parse("https://news.google.com/rss/search?q=gold+price&hl=en-US&gl=US&ceid=US:en").entries[:5]]
+pol_news = [e.title for e in feedparser.parse("https://news.google.com/rss/search?q=Trump+tariffs+gold&hl=en-US&gl=US&ceid=US:en").entries[:5]]
+st.write("اقتصادية:")
 for t in econ_news[:5]: st.write("- " + t)
 st.write("سياسية:")
 for t in pol_news[:5]: st.write("- " + t)
