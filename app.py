@@ -3,6 +3,7 @@ import pandas as pd
 import yfinance as yf
 import feedparser
 import plotly.graph_objects as go
+from datetime import datetime
 
 st.set_page_config(page_title="Gold Pro", layout="wide")
 PASSWORD = "gold2026"
@@ -19,6 +20,15 @@ if not st.session_state.auth:
         else:
             st.error("كلمة السر غلط")
     st.stop()
+
+# ===== زر التحديث =====
+top1, top2 = st.columns([1, 4])
+with top1:
+    if st.button("تحديث 🔄", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
+with top2:
+    st.write(f"آخر تحديث: {datetime.now().strftime('%H:%M:%S')}")
 
 st.title("Gold Pro - تحليل الذهب الحي")
 timeframe = st.selectbox("الفريم", ["1m", "5m", "15m", "30m", "1h", "4h", "1d", "1wk", "1mo"], index=6)
@@ -127,3 +137,8 @@ with lc3:
 risk_money = balance * (risk_pct / 100)
 lot = risk_money / (sl_dist * 100) if sl_dist > 0 else 0
 st.info(f"اللوت: {lot:.2f} | رح تخسر اذا ضرب ستوب: ${risk_money:.2f} | الربح المتوقع عند هدف 1: ${lot * abs(tp1 - entry) * 100:,.2f}")
+
+# زر تحديث تحت كمان مشان ما تطلع لفوق
+if st.button("تحديث الصفحة 🔄", use_container_width=True):
+    st.cache_data.clear()
+    st.rerun()
