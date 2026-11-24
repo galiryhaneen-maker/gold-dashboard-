@@ -195,4 +195,5 @@ def analyze_tf(period, interval):
         reason_txt = reason_txt + " = لا يوجد توافق"
     lot_raw = risk_money / (sl_dist * 100)
     lot = round(lot_raw, 2)
-    if lot < 0.
+    if lot * 100 < 1:
+    lot = 1 / 100 
