@@ -41,11 +41,6 @@ if st.session_state.get("show2", False): st.subheader("جدول 2 - يومي"); 
 if st.button("حساب جدول الطويل", use_container_width=True): st.session_state.show3 = True
 if st.session_state.get("show3", False): st.subheader("جدول 3 - طويل"); d = [analyze_tf(p, i) for n, p, i in [("1d", "3mo", "1d"), ("1wk", "1y", "1wk"), ("1mo", "5y", "1mo")]]
 if st.session_state.get("show3", False): rows = [[n, r["direction"], round(r["last"], 2), round(r["sl"], 2), round(r["tp1"], 2), round(r["tp2"], 2), round(r["tp3"], 2), r["lot"], round(r["rsi"], 0), r["reason"]] for (n, p, i), r in zip([("1d", "3mo", "1d"), ("1wk", "1y", "1wk"), ("1mo", "5y", "1mo")], d)]; st.dataframe(pd.DataFrame(rows, columns=["الفريم", "الاتجاه", "السعر", "الستوب", "هدف 1", "هدف 2", "هدف 3", "اللوت", "RSI", "سبب الدخول"]), use_container_width=True)
-st.subheader("تفاصيل الاخبار")
-st.write("اقتصادية:")
-for t in econ_news[:5]: st.write("- " + t)
-st.write("سياسية:")
-for t in pol_news[:5]: st.write("- " + t)
 st.subheader("الشارت - الشموع اليابانية")
 tf_choice = st.selectbox("اختار الفريم", ["1m", "5m", "15m", "1h", "4h", "1d"], index=3)
 tf_p = "5d"
@@ -60,3 +55,10 @@ chart_data = analyze_tf(tf_p, tf_i)["df"]
 fig = go.Figure(data=[go.Candlestick(x=chart_data.index, open=chart_data["Open"], high=chart_data["High"], low=chart_data["Low"], close=chart_data["Close"])])
 fig.update_layout(title="الذهب - " + tf_choice, yaxis_title="السعر", height=500)
 st.plotly_chart(fig, use_container_width=True)  
+st.subheader("تفاصيل الاخبار")
+econ_news = get_news("https://news.google.com/rss/search?q=gold+price&hl=en-US&gl=US&ceid=US:en")
+pol_news = get_news("https://news.google.com/rss/search?q=Trump+tariffs+gold&hl=en-US&gl=US&ceid=US:en")
+st.write("اقتصادية:")
+for t in econ_news[:5]: st.write("- " + t)
+st.write("سياسية:")
+for t in pol_news[:5]: st.write("- " + t)
