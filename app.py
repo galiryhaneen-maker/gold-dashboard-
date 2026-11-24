@@ -53,6 +53,7 @@ if tf_choice == "4h": tf_p = "1mo"; tf_i = "1h"
 if tf_choice == "1d": tf_p = "3mo"; tf_i = "1d"
 chart_res = analyze_tf(tf_p, tf_i)
 chart_data = chart_res["df"]
+fig = go.Figure(data=[go.Candlestick(x=chart_data.index, open=chart_data["Open"], high=chart_data["High"], low=chart_data["Low"], close=chart_data["Close"])])
 fig.add_hline(y=chart_res["last"], line_color="blue", line_dash="dash", annotation_text="دخول " + str(round(chart_res["last"], 2)), annotation_position="top left")
 fig.add_hline(y=chart_res["sl"], line_color="red", line_dash="dash", annotation_text="ستوب " + str(round(chart_res["sl"], 2)), annotation_position="bottom left")
 fig.add_hline(y=chart_res["tp1"], line_color="green", line_dash="dash", annotation_text="هدف 1 " + str(round(chart_res["tp1"], 2)), annotation_position="top left")
