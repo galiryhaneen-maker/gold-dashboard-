@@ -1,265 +1,144 @@
 import streamlit as st
-import yfinance as yf
 import pandas as pd
+import yfinance as yf
 import numpy as np
 import feedparser
-from datetime import datetime
+from datetime import datetime, date
 import matplotlib.pyplot as plt
 import time
 
 st.set_page_config(page_title="Gold Pro", layout="wide")
 
-# --- PASSWORD GATE ---
+# ================= SHEET =================
+SHEET_ID = "1T1GsvJnlwSOzF3mzeAkIu6i4BqpiRSHS6w0vSUISqyY"
+SHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
+
+@st.cache_data(ttl=60)
+def load_users():
+    try:
+        df = pd.read_csv(SHEET_URL)
+        df.columns = [c.strip().lower() for c in df.columns]
+        return df
+    except:
+        return pd.DataFrame()
+
+# ================= LOGIN =================
 if "auth" not in st.session_state:
     st.session_state.auth = False
+    st.session_state.user = ""
 
 if not st.session_state.auth:
-    st.title("🔒 Private Dashboard")
-    pwd = st.text_input("Enter Password", type="password")
-    if st.button("Login"):
-        if pwd == st.secrets["PASSWORD"]:
-            st.session_state.auth = True
-            st.rerun()
+    st.title("🔒 Gold Pro - تسجيل دخول")
+    st.write("ادخل اليوزر والباسورد اللي اشتريتهم")
+
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+
+    if st.button("دخول", use_container_width=True):
+        users = load_users()
+        if users.empty:
+            st.error("الشيت مو متاح، تأكد من Share - Anyone with link")
         else:
-            st.error("Wrong password!")
+            # مندور بدون حساسية لحالة الاحرف
+            users['username'] = users['username'].astype(str).str.strip().str.lower()
+            users['password'] = users['password'].astype(str).str.strip()
+            found = users[(users['username'] == username.strip().lower()) & (users['password'] == password.strip())]
+
+            if found.empty:
+                st.error("اليوزر أو الباسورد غلط ❌")
+            else:
+                row = found.iloc[0]
+                try:
+                    expiry = pd.to_datetime(row['expiry_date']).strftime('%Y-%m-%d')
+                except:
+                    expiry = str(row['expiry_date'])[:10]
+                active = str(row['active']).strip().upper() == "TRUE"
+
+                if not active:
+                    st.error("هاد الحساب موقف، تواصل معنا")
+                elif expiry < str(date.today()):
+                    st.error(f"اشتراكك انتهى بتاريخ {expiry}، جدد اشتراكك")
+                else:
+                    st.session_state.auth = True
+                    st.session_state.user = username
+                    st.success(f"أهلاً {username} ✅ اشتراكك شغال لـ {expiry}")
+                    time.sleep(1)
+                    st.rerun()
     st.stop()
-# --- END GATE ---
-st.set_page_config(page_title="Gold Pro", layout="wide")
-st.title("🏆 شاشة الذهب Pro")
-if st.button("🔄 حدث هلأ"):
-    st.rerun()
-auto = st.toggle("تحديث تلقائي", value=False)
-if auto:
-    time.sleep(60)
-    st.rerun()
-st.caption(f"اخر تحديث: {datetime.now().strftime('%H:%M:%S')}")
 
-st.sidebar.header("⚙️ الإعدادات")
-timeframe = st.sidebar.selectbox("الفريم الرئيسي:", ["1m","5m","15m","30m","1h","4h","1d","1wk","1mo"], index=5)
-capital = st.sidebar.number_input("راس مالك:", value=1000, step=100)
-risk_pct = st.sidebar.slider("المخاطرة %:", 0.5, 5.0, 1.0)
-period_map = {"1m":"1d","5m":"5d","15m":"5d","30m":"1mo","1h":"3mo","4h":"6mo","1d":"1y","1wk":"5y","1mo":"10y"}
-interval_map = {"1m":"1m","5m":"5m","15m":"15m","30m":"30m","1h":"60m","4h":"60m","1d":"1d","1wk":"1wk","1mo":"1mo"}
+# ================= DASHBOARD =================
+st.sidebar.success(f"متصل: {st.session_state.user}")
+if st.sidebar.button("خروج"):
+    st.session_state.auth = False
+    st.rerun()
 
-def get_data(interval, period):
-    if interval == "4h":
-        df = yf.download("GC=F", interval="60m", period=period, progress=False, auto_adjust=True)
-        df.columns = df.columns.get_level_values(0)
-        df = df.reset_index()
-        df = df.rename(columns={"Datetime":"Date"})
-        df = df.set_index("Date").resample("4h").agg({"Open":"first","High":"max","Low":"min","Close":"last"}).dropna().reset_index()
-        return df
-    df = yf.download("GC=F", interval=interval, period=period, progress=False, auto_adjust=True)
-    df.columns = df.columns.get_level_values(0)
-    df = df.reset_index()
-    date_col = [c for c in df.columns if "Date" in str(c)][0]
-    df = df.rename(columns={date_col:"Date"})
+st.title("🏆 Gold Pro - تحليل الذهب الحي")
+st.caption("هذا التطبيق للتحليل التعليمي وليس نصيحة استثمارية")
+
+# --- جلب السعر ---
+@st.cache_data(ttl=60)
+def get_gold():
+    df = yf.download("GC=F", period="1mo", interval="1d", progress=False)
+    if df.empty:
+        df = yf.download("XAUUSD=X", period="1mo", interval="1d", progress=False)
     return df
 
-def add_heikin(df):
-    df = df.copy()
-    for c in ['Open','High','Low','Close']:
-        df[c] = pd.to_numeric(df[c], errors='coerce')
-    df = df.dropna().reset_index(drop=True)
-    ha_close = []
-    ha_open = []
-    for i in range(len(df)):
-        o = float(df['Open'].iloc[i])
-        h = float(df['High'].iloc[i])
-        l = float(df['Low'].iloc[i])
-        c = float(df['Close'].iloc[i])
-        hc = (o+h+l+c)/4
-        ha_close.append(hc)
-        if i == 0:
-            ho = (o+c)/2
-        else:
-            ho = (ha_open[i-1]+ha_close[i-1])/2
-        ha_open.append(ho)
-    df['HA_Close'] = ha_close
-    df['HA_Open'] = ha_open
-    df['HA_High'] = df[['High','HA_Open','HA_Close']].max(axis=1)
-    df['HA_Low'] = df[['Low','HA_Open','HA_Close']].min(axis=1)
-    return df
-
-def analyze_news(title):
-    text = title.lower()
-    score = 0
-    reason = ""
-    pos = {"rate cut":2,"central bank buys":2,"safe haven":2,"gold rallies":2,"gold jumps":2,"gold surges":2,"war":2,"crisis":2,"recession":1.5,"dollar falls":1.5,"gold gains":1.5,"gold rises":1.5}
-    neg = {"rate hike":-2,"hike bets":-2,"hawkish":-2,"gold slides":-2,"gold falls":-2,"gold drops":-2,"selloff":-2,"under pressure":-2,"strong dollar":-1.5,"dollar rises":-1,"gold tumbles":-2,"gold plunges":-2}
-    for p,w in pos.items():
-        if p in text:
-            score += w
-            reason += p + " "
-    for p,w in neg.items():
-        if p in text:
-            score += w
-            reason += p + " "
-    if score == 0:
-        if any(w in text for w in ["falls","drops","slides","losses","pressure","hurt"]):
-            score = -1
-            reason = "كلمة هبوط"
-        elif any(w in text for w in ["rises","jumps","surges","gains","rebound"]):
-            score = 1
-            reason = "كلمة صعود"
-        else:
-            reason = "محايد"
-    if score > 0.5:
-        label = "ايجابي 🟢"
-    elif score < -0.5:
-        label = "سلبي 🔴"
-    else:
-        label = "محايد ⚪"
-    return score, label, reason
-
-def analyze_tf(tf):
-    df = add_heikin(get_data(interval_map[tf], period_map[tf]))
-    if len(df) < 5:
-        return None
-    price = float(df['Close'].iloc[-1])
-    df['TR'] = np.maximum(df['High']-df['Low'], np.maximum(abs(df['High']-df['Close'].shift(1)), abs(df['Low']-df['Close'].shift(1))))
-    atr_raw = float(df['TR'].rolling(14).mean().iloc[-1])
-    if np.isnan(atr_raw) or atr_raw == 0:
-        atr_raw = price * 0.002
-    atr = min(atr_raw, price * 0.015)
-    atr = max(atr, price * 0.0005)
-    last = df.iloc[-1]
-    if last['HA_Close'] > last['HA_Open']:
-        trend = "صاعد ✅"
-        score = 1
-    else:
-        trend = "هابط 🔻"
-        score = -1
-    look = df.tail(50)
-    resistance = float(look['High'].max())
-    support = float(look['Low'].min())
-    mid_res = float(look['High'].quantile(0.75))
-    mid_sup = float(look['Low'].quantile(0.25))
-    dist_sup = abs(price - mid_sup) / atr
-    dist_res = abs(price - mid_res) / atr
-    risk_money = capital * (risk_pct/100)
-    if score == 1 and dist_sup < 1.5:
-        direction = "BUY 🟢"
-        entry = price
-        sl = max(entry - atr*1.5, support - atr*0.2)
-        tp1 = entry + atr*1.5
-        tp2 = min(entry + atr*3.0, resistance + atr*0.2)
-        reason = f"قريب من الدعم {mid_sup:.2f}"
-    elif score == -1 and dist_res < 1.5:
-        direction = "SELL 🔴"
-        entry = price
-        sl = min(entry + atr*1.5, resistance + atr*0.2)
-        tp1 = entry - atr*1.5
-        tp2 = max(entry - atr*3.0, support - atr*0.2)
-        reason = f"قريب من المقاومة {mid_res:.2f}"
-    elif score == 1:
-        direction = "انتظار شراء ⏳"
-        entry = mid_sup
-        sl = max(entry - atr*1.5, support - atr*0.2)
-        tp1 = entry + atr*1.5
-        tp2 = min(entry + atr*3.0, resistance + atr*0.2)
-        reason = f"انتظر رجوع لـ {mid_sup:.2f}"
-    else:
-        direction = "انتظار بيع ⏳"
-        entry = mid_res
-        sl = min(entry + atr*1.5, resistance + atr*0.2)
-        tp1 = entry - atr*1.5
-        tp2 = max(entry - atr*3.0, support - atr*0.2)
-        reason = f"انتظر صعود لـ {mid_res:.2f}"
-    max_sl = price * 0.03
-    if abs(entry - sl) > max_sl:
-        if entry > sl:
-            sl = entry - max_sl
-        else:
-            sl = entry + max_sl
-    lot = risk_money / (abs(entry-sl)*100) if abs(entry-sl) > 0 else 0
-    lot = max(0.01, min(round(lot,2), 5.0))
-    return {"tf":tf,"price":price,"trend":trend,"score":score,"atr":atr,"support":mid_sup,"resistance":mid_res,"support_strong":support,"resistance_strong":resistance,"direction":direction,"entry":entry,"sl":sl,"tp1":tp1,"tp2":tp2,"lot":lot,"reason":reason,"df":df}
-
-tf_list = ["1m","5m","15m","30m","1h","4h","1d","1wk","1mo"]
-results = {}
-for tf in tf_list:
-    try:
-        r = analyze_tf(tf)
-        if r:
-            results[tf] = r
-    except:
-        pass
-main = results.get(timeframe)
-if main:
-    c1,c2,c3,c4 = st.columns(4)
-    c1.metric("السعر", f"{main['price']:.2f} $")
-    c2.metric(f"اتجاه {timeframe}", main["trend"])
-    c3.metric("ATR", f"{main['atr']:.2f}")
-    c4.metric("المقاومة", f"{main['resistance']:.2f}")
-st.subheader("📊 كل الفريمات")
-rows = []
-for tf in tf_list:
-    if tf in results:
-        r = results[tf]
-        rows.append({"الفريم":tf,"السعر":f"{r['price']:.2f}","الاتجاه":r["trend"],"الدعم":f"{r['support']:.2f}","المقاومة":f"{r['resistance']:.2f}","القرار":r["direction"],"الدخول":f"{r['entry']:.2f}","SL":f"{r['sl']:.2f}","TP1":f"{r['tp1']:.2f}","TP2":f"{r['tp2']:.2f}","اللوت":r["lot"],"ليش؟":r["reason"]})
-st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-if main:
-    st.subheader(f"🎯 {timeframe}")
-    c1,c2,c3,c4,c5 = st.columns(5)
-    c1.metric("القرار", main["direction"])
-    c2.metric("الدخول", f"{main['entry']:.2f}")
-    c3.metric("SL", f"{main['sl']:.2f}")
-    c4.metric("TP1", f"{main['tp1']:.2f}")
-    c5.metric("TP2", f"{main['tp2']:.2f}")
-    st.info(f"ليش؟ {main['reason']}")
-    st.success(f"راس مالك: {capital}$ | اللوت: {main['lot']}")
-    st.subheader(f"📈 شموع - {timeframe}")
-    plot_df = main["df"].tail(40).copy()
-    fig, ax = plt.subplots(figsize=(12,5))
-    x = np.arange(len(plot_df))
-    for i in range(len(plot_df)):
-        row = plot_df.iloc[i]
-        col = "green" if row['HA_Close'] >= row['HA_Open'] else "red"
-        ax.plot([x[i],x[i]], [row['HA_Low'], row['HA_High']], color="black", linewidth=0.8)
-        ax.plot([x[i],x[i]], [row['HA_Open'], row['HA_Close']], color=col, linewidth=6, solid_capstyle="round")
-    ax.axhline(main['support'], color="green", linestyle="--", label=f"دعم {main['support']:.2f}")
-    ax.axhline(main['resistance'], color="red", linestyle="--", label=f"مقاومة {main['resistance']:.2f}")
-    ax.axhline(main['entry'], color="blue", linestyle=":", label=f"دخول {main['entry']:.2f}")
-    ax.axhline(main['sl'], color="orange", linestyle=":", label=f"SL {main['sl']:.2f}")
-    ax.axhline(main['tp1'], color="purple", linestyle=":", label=f"TP1 {main['tp1']:.2f}")
-    ax.legend(fontsize=8)
-    ax.grid(True, alpha=0.3)
-    st.pyplot(fig)
-st.subheader("🔥 الجاهزة هلأ")
-ready = [r for r in results.values() if r["direction"] in ["BUY 🟢","SELL 🔴"]]
-if ready:
-    for r in ready:
-        st.markdown(f"**{r['tf']}** - {r['direction']} دخول {r['entry']:.2f} | SL {r['sl']:.2f} | TP1 {r['tp1']:.2f} | TP2 {r['tp2']:.2f} | لوت {r['lot']}")
-else:
-    st.warning("ما في صفقة جاهزة هلأ.")
-st.subheader("📰 الأخبار - سلبية ولا إيجابية؟")
 try:
-    feed = feedparser.parse("https://news.google.com/rss/search?q=gold+price+OR+Federal+Reserve+OR+inflation&hl=en&gl=US&ceid=US:en")
-    total = 0
-    for e in feed.entries[:10]:
-        s, label, reason = analyze_news(e.title)
-        total += s
-        if s > 0.5:
-            st.success(f"🟢 {label} [{s:+.1f}] - {e.title} | {reason}")
-        elif s < -0.5:
-            st.error(f"🔴 {label} [{s:+.1f}] - {e.title} | {reason}")
-        else:
-            st.info(f"⚪ {label} [{s:+.1f}] - {e.title} | {reason}")
-    if total > 2:
-        st.success(f"### مجموع الأخبار: {total:+.1f} - إيجابية 🟢")
-    elif total < -2:
-        st.error(f"### مجموع الأخبار: {total:+.1f} - سلبية 🔴")
+    df = get_gold()
+    # تنظيف الأعمدة
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
+    close = df['Close']
+    last = float(close.iloc[-1])
+    prev = float(close.iloc[-2])
+    change = last - prev
+    pct = (change / prev) * 100
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("سعر الذهب الآن", f"${last:,.2f}", f"{change:+.2f} ({pct:+.2f}%)")
+    c2.metric("أعلى سعر اليوم", f"${float(df['High'].iloc[-1]):,.2f}")
+    c3.metric("أدنى سعر اليوم", f"${float(df['Low'].iloc[-1]):,.2f}")
+    c4.metric("آخر تحديث", datetime.now().strftime("%H:%M:%S"))
+
+    # --- الشارت ---
+    st.subheader("📈 شارت الذهب - آخر 30 يوم")
+    fig, ax = plt.subplots(figsize=(10, 4))
+    ax.plot(close.index, close.values, linewidth=2)
+    ax.grid(True, alpha=0.3)
+    ax.set_ylabel("Price $")
+    plt.xticks(rotation=30)
+    st.pyplot(fig)
+
+    # --- إشارات بسيطة ---
+    st.subheader("📊 التحليل السريع")
+    ma7 = close.rolling(7).mean().iloc[-1]
+    ma20 = close.rolling(20).mean().iloc[-1]
+    if last > ma7 > ma20:
+        st.success("✅ الاتجاه صاعد - السعر فوق المتوسطات")
+    elif last < ma7 < ma20:
+        st.error("🔻 الاتجاه هابط - السعر تحت المتوسطات")
     else:
-        st.warning(f"### مجموع الأخبار: {total:+.1f} - محايدة ⚪")
-    if main:
-        if main["score"]==1 and total>2:
-            st.success("✅ تأكيد قوي: تقني صاعد + اخبار ايجابية = شراء")
-        elif main["score"]==-1 and total<-2:
-            st.error("✅ تأكيد قوي: تقني هابط + اخبار سلبية = بيع")
-        elif main["score"]==1 and total<-2:
-            st.warning("⚠️ تضارب! تقني صاعد بس اخبار سلبية - لا تدخل")
-        elif main["score"]==-1 and total>2:
-            st.warning("⚠️ تضارب! تقني هابط بس اخبار ايجابية - لا تدخل")
-except:
-    st.write("ما قدرنا نجيب الأخبار")
+        st.warning("⚠️ الاتجاه متذبذب - لا يوجد اتجاه واضح")
+
+    st.write(f"- **دعم قريب:** ${float(df['Low'].tail(7).min()):,.2f}")
+    st.write(f"- **مقاومة قريبة:** ${float(df['High'].tail(7).max()):,.2f}")
+    st.write(f"- **متوسط 7 أيام:** ${float(ma7):,.2f}")
+    st.write(f"- **متوسط 20 يوم:** ${float(ma20):,.2f}")
+
+    # --- أخبار ---
+    st.subheader("📰 آخر أخبار الذهب")
+    try:
+        feed = feedparser.parse("https://www.google.com/finance/rss?q=gold")
+        if len(feed.entries) == 0:
+            feed = feedparser.parse("https://feeds.finance.yahoo.com/rss/2.0/headline?s=GC=F&region=US&lang=en-US")
+        for e in feed.entries[:5]:
+            st.write(f"- [{e.title}]({e.link})")
+    except:
+        st.write("لا توجد أخبار حالياً")
+
+except Exception as e:
+    st.error("مشكلة بجلب البيانات، جرب تحديث الصفحة")
+    st.write(e)
+
+st.divider()
+st.caption("Gold Pro © 2026 - للتواصل للتجديد عبر واتساب")
