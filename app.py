@@ -51,8 +51,14 @@ if tf_choice == "15m": tf_p = "5d"; tf_i = "15m"
 if tf_choice == "1h": tf_p = "5d"; tf_i = "1h"
 if tf_choice == "4h": tf_p = "1mo"; tf_i = "1h"
 if tf_choice == "1d": tf_p = "3mo"; tf_i = "1d"
-chart_data = analyze_tf(tf_p, tf_i)["df"]
+chart_res = analyze_tf(tf_p, tf_i)
+chart_data = chart_res["df"]
 fig = go.Figure(data=[go.Candlestick(x=chart_data.index, open=chart_data["Open"], high=chart_data["High"], low=chart_data["Low"], close=chart_data["Close"])])
+fig.add_hline(y=chart_res["last"], line_color="blue", annotation_text="دخول " + str(round(chart_res["last"], 2)))
+fig.add_hline(y=chart_res["sl"], line_color="red", annotation_text="ستوب " + str(round(chart_res["sl"], 2)))
+fig.add_hline(y=chart_res["tp1"], line_color="green", annotation_text="هدف 1 " + str(round(chart_res["tp1"], 2)))
+fig.add_hline(y=chart_res["tp2"], line_color="green", annotation_text="هدف 2 " + str(round(chart_res["tp2"], 2)))
+fig.add_hline(y=chart_res["tp3"], line_color="green", annotation_text="هدف 3 " + str(round(chart_res["tp3"], 2)))
 fig.update_layout(title="الذهب - " + tf_choice, yaxis_title="السعر", height=500)
 st.plotly_chart(fig, use_container_width=True)  
 st.subheader("تفاصيل الاخبار")
