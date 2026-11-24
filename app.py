@@ -89,12 +89,8 @@ calc_entry = c1.number_input("سعر الدخول:", value=float(main['entry']) 
 calc_sl = c2.number_input("الستوب:", value=float(main['sl']) if main else 3480.0)
 calc_tp = c3.number_input("الهدف:", value=float(main['tp1']) if main else 3520.0)
 calc_lot = c4.number_input("اللوت:", value=float(main['lot']) if main else 0.10)
-if calc_tp > calc_entry:
-calc_profit = (calc_tp - calc_entry) * 100 * calc_lot
-calc_loss = (calc_entry - calc_sl) * 100 * calc_lot
-else:
-calc_profit = (calc_entry - calc_tp) * 100 * calc_lot
-calc_loss = (calc_sl - calc_entry) * 100 * calc_lot
+calc_profit = abs(calc_tp - calc_entry) * 100 * calc_lot
+calc_loss = abs(calc_entry - calc_sl) * 100 * calc_lot
 st.success(f"✅ إذا ضرب الهدف: ربح **{calc_profit:.2f}$** | ❌ إذا ضرب الستوب: خسارة **{calc_loss:.2f}$** | النسبة: **{calc_profit/max(calc_loss,0.01):.1f} : 1**")st.subheader("📅 أخبار اليوم المهمة - لا تدخل قبل خبر قوي")
 try:
     import feedparser as fp2
