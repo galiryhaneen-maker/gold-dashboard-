@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import yfinance as yf
+import feedparser
 import plotly.graph_objects as go
 
 st.set_page_config(page_title="Gold Pro", layout="wide")
@@ -22,8 +23,20 @@ if not st.session_state.auth:
     st.stop()
 
 st.title("Gold Pro - تحليل الذهب الحي")
-timeframe = st.selectbox("الفريم", ["15m", "1h", "4h", "1d"], index=3)
-period_map = {"15m": ("1d", "15m"), "1h": ("5d", "1h"), "4h": ("1mo", "1h"), "1d": ("3mo", "1d")}
+
+# ===== الفريمات من دقيقة لشهر =====
+timeframe = st.selectbox("الفريم", ["1m", "5m", "15m", "30m", "1h", "4h", "1d", "1wk", "1mo"], index=6)
+period_map = {
+    "1m": ("1d", "1m"),
+    "5m": ("1d", "5m"),
+    "15m": ("5d", "15m"),
+    "30m": ("5d", "30m"),
+    "1h": ("5d", "1h"),
+    "4h": ("1mo", "1h"),
+    "1d": ("3mo", "1d"),
+    "1wk": ("1y", "1wk"),
+    "1mo": ("5y", "1mo"),
+}
 period, interval = period_map[timeframe]
 
 @st.cache_data(ttl=60)
@@ -45,6 +58,8 @@ gain = delta.where(delta > 0, 0).rolling(14).mean()
 loss = -delta.where(delta < 0, 0).rolling(14).mean()
 rsi = 100 - (100 / (1 + gain / loss))
 rsi_last = float(rsi.iloc[-1])
+ma20 = float(close.rolling(20).mean().iloc[-1])
+ma50 = float(close.rolling(50).mean().iloc[-1]) if len(close) > 50 else ma20
 
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("سعر الذهب", f"${last:,.2f}", f"{change:+.2f} ({pct:+.2f}%)")
@@ -54,50 +69,34 @@ c4.metric("ادنى", f"${float(df['Low'].iloc[-1]):,.2f}")
 
 fig = go.Figure(data=[go.Candlestick(x=df.index, open=df["Open"], high=df["High"], low=df["Low"], close=df["Close"])])
 fig.add_trace(go.Scatter(x=df.index, y=close.rolling(20).mean(), line=dict(color="orange", width=1), name="MA 20"))
+fig.add_trace(go.Scatter(x=df.index, y=close.rolling(50).mean(), line=dict(color="blue", width=1), name="MA 50"))
 fig.update_layout(height=450, xaxis_rangeslider_visible=False, template="plotly_white")
 st.plotly_chart(fig, use_container_width=True)
 
-support = float(df["Low"].tail(20).min())
-resistance = float(df["High"].tail(20).max())
-ma20 = float(close.rolling(20).mean().iloc[-1])
+# ===== الدعم والمقاومة =====
+support = float(df["Low"].tail(30).min())
+resistance = float(df["High"].tail(30).max())
+risk_range = abs(last - support) if last > support else abs(resistance - last)
+if risk_range < 5:
+    risk_range = 15
 
-st.subheader("اشارة الصفقة")
-if last > ma20 and rsi_last < 70:
-    signal = "شراء BUY"
-    entry = last
-    sl = support
-    tp1 = last + (last - support) * 1.5
-    tp2 = resistance
-    st.success(signal)
-elif last < ma20 and rsi_last > 30:
-    signal = "بيع SELL"
-    entry = last
-    sl = resistance
-    tp1 = last - (resistance - last) * 1.5
-    tp2 = support
-    st.error(signal)
-else:
-    signal = "انتظار"
-    entry = last
-    sl = support
-    tp1 = resistance
-    tp2 = resistance
-    st.warning(signal)
-
-sc1, sc2, sc3, sc4 = st.columns(4)
-sc1.metric("الدخول", f"${entry:,.2f}")
-sc2.metric("ستوب", f"${sl:,.2f}")
-sc3.metric("هدف 1", f"${tp1:,.2f}")
-sc4.metric("هدف 2", f"${tp2:,.2f}")
-
-st.subheader("حاسبة اللوت")
-lc1, lc2, lc3 = st.columns(3)
-with lc1:
-    balance = st.number_input("رصيدك $", value=1000, min_value=10)
-with lc2:
-    risk_pct = st.slider("مخاطرة %", 0.5, 5.0, 1.0)
-with lc3:
-    sl_pips = st.number_input("الستوب $", value=abs(entry - sl), min_value=0.1)
-risk_money = balance * (risk_pct / 100)
-lot = risk_money / (sl_pips * 100) if sl_pips > 0 else 0
-st.info(f"اللوت: {lot:.2f} | رح تخسر اذا ضرب ستوب: ${risk_money:.2f}")
+# ===== تقييم الاخبار =====
+st.subheader("تقييم الاخبار")
+try:
+    feed = feedparser.parse("https://www.investing.com/rss/news_285.rss")
+    news_text = " ".join([e.title for e in feed.entries[:8]])
+    pos_words = ["rise", "surge", "gain", "bullish", "record", "up", "higher", "strong", "rally", "ارتفاع", "صعود"]
+    neg_words = ["fall", "drop", "bearish", "down", "lower", "weak", "decline", "crash", "انخفاض", "هبوط"]
+    pos = sum(1 for w in pos_words if w.lower() in news_text.lower())
+    neg = sum(1 for w in neg_words if w.lower() in news_text.lower())
+    if pos > neg:
+        news_score = "ايجابي - داعم للصعود"
+        st.success(f"الاخبار: {news_score} | ايجابي {pos} - سلبي {neg}")
+    elif neg > pos:
+        news_score = "سلبي - داعم للهبوط"
+        st.error(f"الاخبار: {news_score} | ايجابي {pos} - سلبي {neg}")
+    else:
+        news_score = "محايد"
+        st.warning(f"الاخبار: محايد | ايجابي {pos} - سلبي {neg}")
+    for e in feed.entries[:5]:
+        st.write
