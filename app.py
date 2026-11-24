@@ -4,10 +4,8 @@ import yfinance as yf
 import feedparser
 import plotly.graph_objects as go
 from datetime import datetime
-
 st.set_page_config(page_title="Gold Pro", layout="wide")
 PASSWORD = "gold2026"
-
 if "auth" not in st.session_state:
     st.session_state.auth = False
 if not st.session_state.auth:
@@ -20,22 +18,18 @@ if not st.session_state.auth:
         else:
             st.error("كلمة السر غلط")
     st.stop()
-
 if st.button("تحديث", use_container_width=True):
     st.cache_data.clear()
     st.rerun()
-
 now_txt = datetime.now().strftime("%H:%M:%S")
 st.write("اخر تحديث: " + now_txt)
 st.title("Gold Pro - 3 جداول")
-
 def get_news(url):
     feed = feedparser.parse(url)
     titles = []
     for e in feed.entries[:10]:
         titles.append(e.title.lower())
     return feed, titles
-
 def score_titles(titles):
     pos_w = ["rise", "surge", "gain", "bullish", "rally", "jump", "rebound", "haven", "record"]
     neg_w = ["fall", "falls", "drop", "drops", "bearish", "decline", "crash", "plunge", "slump", "tumble"]
@@ -56,7 +50,6 @@ def score_titles(titles):
         if is_n and not is_p:
             n = n + 1
     return p, n
-
 u_eco = "https://news.google.com/rss/search?q=gold+inflation+interest+dollar&hl=en&gl=US&ceid=US:en"
 u_pol = "https://news.google.com/rss/search?q=gold+war+geopolitical+tension&hl=en&gl=US&ceid=US:en"
 feed_eco, tit_eco = get_news(u_eco)
@@ -71,42 +64,11 @@ elif total_neg > total_pos:
     news_score = "سلبي"
 else:
     news_score = "محايد"
-
 st.subheader("اخبار الذهب")
 st.write("اقتصادية: ايجابي " + str(eco_pos) + " - سلبي " + str(eco_neg))
 st.write("سياسية: ايجابي " + str(pol_pos) + " - سلبي " + str(pol_neg))
 st.info("مجموع الاخبار: " + news_score)
-
 st.subheader("حاسبة اللوت")
 balance = st.number_input("رصيدك", value=1000, min_value=10)
 risk_pct = st.slider("مخاطرة %", 0.5, 5.0, 1.0)
 risk_money = balance * (risk_pct / 100)
-
-@st.cache_data(ttl=60)
-def analyze_tf(period, interval):
-    df = yf.download("GC=F", period=period, interval=interval, progress=False)
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = df.columns.get_level_values(0)
-    df = df.dropna()
-    close = df["Close"]
-    open_p = df["Open"]
-    high = df["High"]
-    low = df["Low"]
-    last = float(close.iloc[-1])
-    delta = close.diff()
-    gain = delta.where(delta > 0, 0).rolling(14).mean()
-    loss = -delta.where(delta < 0, 0).rolling(14).mean()
-    rsi = 100 - (100 / (1 + gain / loss))
-    rsi_last = float(rsi.iloc[-1])
-    ma20 = float(close.rolling(20).mean().iloc[-1])
-    h1 = high - low
-    h2 = (high - close.shift()).abs()
-    h3 = (low - close.shift()).abs()
-    tr = pd.concat([h1, h2, h3], axis=1).max(axis=1)
-    atr = float(tr.rolling(14).mean().iloc[-1])
-    c0_o = float(open_p.iloc[-1])
-    c0_c = float(close.iloc[-1])
-    c0_h = float(high.iloc[-1])
-    c0_l = float(low.iloc[-1])
-    c1_o = float(open_p.iloc[-2])
-    c1_c = float
