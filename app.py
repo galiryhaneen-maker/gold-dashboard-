@@ -117,10 +117,7 @@ def analyze_tf(period, interval):
         pscore = 1.5
     elif up_wick > body0 * 2 and low_wick < body0 * 0.5:
         pattern = "شهاب"
-        def show_table(title, frames):
-    st.subheader(title)
-    rows = []
-    for name, per, inter in frames:
+        def show_table(title, frames): st.subheader(title); d = [analyze_tf(p, i) for n, p, i in frames]; rows = [{"الفريم": n, "الاتجاه": r["direction"], "السعر": round(r["last"], 2), "الستوب": round(r["sl"], 2), "هدف 1": round(r["tp1"], 2), "هدف 2": round(r["tp2"], 2), "هدف 3": round(r["tp3"], 2), "اللوت": r["lot"], "RSI": round(r["rsi"], 0), "سبب الدخول": r["reason"]} for (n, p, i), r in zip(frames, d)]; st.dataframe(pd.DataFrame(rows), use_container_width=True)
         r = analyze_tf(per, inter)
         rows.append({"الفريم": name, "الاتجاه": r["direction"], "السعر": round(r["last"], 2), "الستوب": round(r["sl"], 2), "هدف 1": round(r["tp1"], 2), "هدف 2": round(r["tp2"], 2), "هدف 3": round(r["tp3"], 2), "اللوت": r["lot"], "RSI": round(r["rsi"], 0), "سبب الدخول": r["reason"]})
     st.dataframe(pd.DataFrame(rows), use_container_width=True)
