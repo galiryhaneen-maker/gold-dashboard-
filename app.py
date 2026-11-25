@@ -8,7 +8,6 @@ from datetime import datetime
 
 st.set_page_config(page_title="Gold Pro", layout="wide", page_icon="🥇")
 
-# ===== ستايل احترافي =====
 st.markdown("""
 <style>
 .main { background-color: #f8f9fa; }
@@ -39,13 +38,11 @@ st.caption("اخر تحديث: " + datetime.now().strftime("%H:%M:%S"))
 
 # ===== السعر اللحظي - مع بديل =====
 def get_gold_price():
-    # مصدر 1: goldprice.org
     try:
         r = requests.get("https://data-asg.goldprice.org/db/XAUUSD.json", timeout=5).json()
         return r["items"][0]["curr"], r["items"][0]["chg"]
     except:
         pass
-    # مصدر 2: yfinance GC=F - بديل مضمون
     try:
         d = yf.download("GC=F", period="1d", interval="1m", progress=False)
         if isinstance(d.columns, pd.MultiIndex):
@@ -113,6 +110,21 @@ risk_pct = st.slider("مخاطرة %", 0.5, 5.0, 1.0)
 risk_money = balance * (risk_pct / 100)
 st.caption(f"رح تخاطر بـ {risk_money:.2f} $ بهاي الصفقة")
 
+# ===== خريطة الفريمات الكاملة =====
+# period, interval لكل فريم
+TF_MAP = {
+    "1m": ("1d", "1m"),
+    "5m": ("1d", "5m"),
+    "15m": ("5d", "15m"),
+    "30m": ("5d", "30m"),
+    "1h": ("5d", "1h"),
+    "4h": ("1mo", "1h"),
+    "1d": ("3mo", "1d"),
+    "1wk": ("1y", "1wk"),
+    "1mo": ("5y", "1mo"),
+}
+ALL_TFS = ["1m", "5m", "15m", "30m", "1h", "4h", "1d", "1wk", "1mo"]
+
 @st.cache_data(ttl=60)
 def analyze_tf(per, inter, news_score_val, risk_money_val):
     df = yf.download("GC=F", period=per, interval=inter, progress=False)
@@ -147,11 +159,10 @@ def analyze_tf(per, inter, news_score_val, risk_money_val):
     lot = max(round(risk_money_val / (sl_dist * 100), 2), 0.01) if sl_dist > 0 else 0.01
     return {"last": last, "rsi": rsi_last, "atr": atr, "pattern": pattern, "direction": direction, "sl": sl, "tp1": tp1, "tp2": tp2, "tp3": tp3, "lot": lot, "reason": reason_txt, "df": df, "score": score}
 
-# ===== الإشارة الأوتوماتيك - مع اختيار الفريم =====
+# ===== الإشارة الأوتوماتيك - كل الفريمات =====
 st.subheader("🎯 الإشارة الأوتوماتيك")
-sig_tf_choice = st.selectbox("اختار فريم الإشارة الأوتوماتيك", ["15m", "30m", "1h", "4h", "1d"], index=2, key="sig_tf")
-sig_map = {"15m": ("5d", "15m"), "30m": ("5d", "30m"), "1h": ("5d", "1h"), "4h": ("1mo", "1h"), "1d": ("3mo", "1d")}
-sig_p, sig_i = sig_map[sig_tf_choice]
+sig_tf_choice = st.selectbox("اختار فريم الإشارة الأوتوماتيك", ALL_TFS, index=4, key="sig_tf")
+sig_p, sig_i = TF_MAP[sig_tf_choice]
 sig_h1 = analyze_tf(sig_p, sig_i, news_score, risk_money)
 
 if sig_h1["direction"] != "انتظار WAIT":
@@ -201,11 +212,10 @@ if st.session_state.get("show3", False):
     rows = [[n, r["direction"], round(r["last"], 2), round(r["sl"], 2), round(r["tp1"], 2), round(r["tp2"], 2), round(r["tp3"], 2), r["lot"], round(r["rsi"], 0), r["reason"]] for (n, p, i), r in zip([("1d", "3mo", "1d"), ("1wk", "1y", "1wk"), ("1mo", "5y", "1mo")], d)]
     st.dataframe(pd.DataFrame(rows, columns=["الفريم", "الاتجاه", "السعر", "الستوب", "هدف 1", "هدف 2", "هدف 3", "اللوت", "RSI", "سبب الدخول"]), use_container_width=True, hide_index=True)
 
-# ===== الشارت =====
+# ===== الشارت - كل الفريمات =====
 st.subheader("📈 الشارت - الشموع اليابانية")
-tf_choice = st.selectbox("اختار فريم الشارت", ["1m", "5m", "15m", "1h", "4h", "1d"], index=3, key="chart_tf")
-tf_map = {"1m": ("1d", "1m"), "5m": ("1d", "5m"), "15m": ("5d", "15m"), "1h": ("5d", "1h"), "4h": ("1mo", "1h"), "1d": ("3mo", "1d")}
-tf_p, tf_i = tf_map[tf_choice]
+tf_choice = st.selectbox("اختار فريم الشارت", ALL_TFS, index=4, key="chart_tf")
+tf_p, tf_i = TF_MAP[tf_choice]
 chart_res = analyze_tf(tf_p, tf_i, news_score, risk_money)
 chart_data = chart_res["df"]
 close_c = chart_data["Close"].astype(float)
