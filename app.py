@@ -37,11 +37,23 @@ if st.button("🔄 تحديث", use_container_width=True):
 
 st.caption("اخر تحديث: " + datetime.now().strftime("%H:%M:%S"))
 
-# ===== السعر اللحظي =====
+# ===== السعر اللحظي - مع بديل =====
 def get_gold_price():
+    # مصدر 1: goldprice.org
     try:
         r = requests.get("https://data-asg.goldprice.org/db/XAUUSD.json", timeout=5).json()
         return r["items"][0]["curr"], r["items"][0]["chg"]
+    except:
+        pass
+    # مصدر 2: yfinance GC=F - بديل مضمون
+    try:
+        d = yf.download("GC=F", period="1d", interval="1m", progress=False)
+        if isinstance(d.columns, pd.MultiIndex):
+            d.columns = d.columns.get_level_values(0)
+        d = d.dropna()
+        last = float(d["Close"].iloc[-1])
+        prev = float(d["Close"].iloc[-2])
+        return last, last - prev
     except:
         return None, None
 
@@ -135,9 +147,13 @@ def analyze_tf(per, inter, news_score_val, risk_money_val):
     lot = max(round(risk_money_val / (sl_dist * 100), 2), 0.01) if sl_dist > 0 else 0.01
     return {"last": last, "rsi": rsi_last, "atr": atr, "pattern": pattern, "direction": direction, "sl": sl, "tp1": tp1, "tp2": tp2, "tp3": tp3, "lot": lot, "reason": reason_txt, "df": df, "score": score}
 
-# ===== الإشارة الرئيسية V2 =====
-st.subheader("🎯 الإشارة الأوتوماتيك - H1")
-sig_h1 = analyze_tf("5d", "1h", news_score, risk_money)
+# ===== الإشارة الأوتوماتيك - مع اختيار الفريم =====
+st.subheader("🎯 الإشارة الأوتوماتيك")
+sig_tf_choice = st.selectbox("اختار فريم الإشارة الأوتوماتيك", ["15m", "30m", "1h", "4h", "1d"], index=2, key="sig_tf")
+sig_map = {"15m": ("5d", "15m"), "30m": ("5d", "30m"), "1h": ("5d", "1h"), "4h": ("1mo", "1h"), "1d": ("3mo", "1d")}
+sig_p, sig_i = sig_map[sig_tf_choice]
+sig_h1 = analyze_tf(sig_p, sig_i, news_score, risk_money)
+
 if sig_h1["direction"] != "انتظار WAIT":
     is_buy = sig_h1["direction"] == "شراء BUY"
     bg = "#e8fdf0" if is_buy else "#ffebee"
@@ -145,7 +161,7 @@ if sig_h1["direction"] != "انتظار WAIT":
     label = "شراء BUY ▲" if is_buy else "بيع SELL ▼"
     st.markdown(f"""
     <div style="background:{bg}; border:2px solid {border}; border-radius:15px; padding:15px;">
-        <div style="display:flex; justify-content:space-between; align-items:center;"><b style="font-size:20px;">{label}</b><b>فريم H1 • لوت {sig_h1['lot']}</b></div>
+        <div style="display:flex; justify-content:space-between; align-items:center;"><b style="font-size:20px;">{label}</b><b>فريم {sig_tf_choice} • لوت {sig_h1['lot']}</b></div>
         <div style="margin-top:10px; font-size:14px;">🕯️ {sig_h1['pattern']} | 📰 أخبار {news_score} | RSI {sig_h1['rsi']:.0f}<br>{sig_h1['reason']}</div>
         <div style="display:flex; gap:8px; margin-top:12px; text-align:center; flex-wrap:wrap;">
             <div style="flex:1; min-width:70px; background:white; border-radius:10px; padding:8px;"><div style="font-size:11px;">دخول</div><b>{sig_h1['last']:,.2f}</b></div>
@@ -157,7 +173,7 @@ if sig_h1["direction"] != "انتظار WAIT":
     </div>
     """, unsafe_allow_html=True)
 else:
-    st.info(f"⏳ لا توجد صفقة الآن على H1 - {sig_h1['pattern']} | أخبار {news_score} | {sig_h1['reason']}")
+    st.info(f"⏳ لا توجد صفقة الآن على {sig_tf_choice} - {sig_h1['pattern']} | أخبار {news_score} | {sig_h1['reason']}")
 
 # ===== الجداول =====
 st.subheader("📊 الجداول")
@@ -187,7 +203,7 @@ if st.session_state.get("show3", False):
 
 # ===== الشارت =====
 st.subheader("📈 الشارت - الشموع اليابانية")
-tf_choice = st.selectbox("اختار الفريم", ["1m", "5m", "15m", "1h", "4h", "1d"], index=3)
+tf_choice = st.selectbox("اختار فريم الشارت", ["1m", "5m", "15m", "1h", "4h", "1d"], index=3, key="chart_tf")
 tf_map = {"1m": ("1d", "1m"), "5m": ("1d", "5m"), "15m": ("5d", "15m"), "1h": ("5d", "1h"), "4h": ("1mo", "1h"), "1d": ("3mo", "1d")}
 tf_p, tf_i = tf_map[tf_choice]
 chart_res = analyze_tf(tf_p, tf_i, news_score, risk_money)
