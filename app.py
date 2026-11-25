@@ -38,6 +38,104 @@ with col_price:
             <div style="font-size:10px; color:#888;">XAU/USD - LIVE</div>
         </div>
         """, unsafe_allow_html=True) 
+        # ===== محرك الإشارة الأوتوماتيك V2 =====
+import yfinance as yf
+import pandas as pd
+
+def get_candles():
+    try:
+        df = yf.download("GC=F", period="2d", interval="1h", progress=False)
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(0)
+        return df
+    except:
+        return None
+
+def detect_signal(df, news_list):
+    if df is None or len(df) < 3:
+        return None
+    last = df.iloc[-1]
+    prev = df.iloc[-2]
+    # 1. تحليل الشموع
+    candle_score = 0
+    candle_reason = ""
+    # ابتلاعية صاعدة
+    if prev['Close'] < prev['Open'] and last['Close'] > last['Open'] and last['Close'] > prev['Open'] and last['Open'] < prev['Close']:
+        candle_score = 2
+        candle_reason = "شمعة ابتلاعية صاعدة على H1"
+    elif prev['Close'] > prev['Open'] and last['Close'] < last['Open'] and last['Close'] < prev['Open'] and last['Open'] > prev['Close']:
+        candle_score = -2
+        candle_reason = "شمعة ابتلاعية هابطة على H1"
+    elif last['Close'] > last['Open'] and (last['Low'] < last['Open'] - (last['Close']-last['Open'])*1.5):
+        candle_score = 1
+        candle_reason = "شمعة هامر Hammer صاعدة"
+    elif last['Close'] < last['Open'] and (last['High'] > last['Open'] + (last['Open']-last['Close'])*1.5):
+        candle_score = -1
+        candle_reason = "شمعة شوتينغ ستار هابطة"
+
+    # 2. تحليل الأخبار
+    news_score = 0
+    news_reason = ""
+    text = " ".join([n.get('title','') for n in news_list[:10]]).lower() if news_list else ""
+    bull_words = ["war", "inflation", "crisis", "tension", "حرب", "تضخم", "أزمة", "توتر"]
+    bear_words = ["peace", "agreement", "rate hike", "سلام", "اتفاق", "هدوء"]
+    for w in bull_words:
+        if w in text:
+            news_score += 1
+    for w in bear_words:
+        if w in text:
+            news_score -= 1
+    if news_score > 0:
+        news_reason = "الأخبار تدعم الصعود"
+    elif news_score < 0:
+        news_reason = "الأخبار تدعم الهبوط"
+
+    total = candle_score + news_score
+    if total >= 2:
+        return {"type": "BUY", "candle": candle_reason, "news": news_reason, "conf": 85}
+    elif total <= -2:
+        return {"type": "SELL", "candle": candle_reason, "news": news_reason, "conf": 85}
+    elif total == 1:
+        return {"type": "BUY", "candle": candle_reason, "news": news_reason, "conf": 60}
+    elif total == -1:
+        return {"type": "SELL", "candle": candle_reason, "news": news_reason, "conf": 60}
+    else:
+        return {"type": "WAIT", "candle": candle_reason or "لا يوجد نمط شموع واضح", "news": news_reason or "أخبار محايدة", "conf": 0}
+
+df = get_candles()
+# جيب الأخبار من دالة get_news يلي عندك
+try:
+    news_data = get_news()
+except:
+    news_data = []
+signal = detect_signal(df, news_data)
+
+if signal and price:
+    if signal["type"] != "WAIT":
+        is_buy = signal["type"] == "BUY"
+        entry = price
+        sl = entry - 14 if is_buy else entry + 14
+        tp1 = entry + 14 if is_buy else entry - 14
+        tp2 = entry + 28 if is_buy else entry - 28
+        tp3 = entry + 56 if is_buy else entry - 56
+        bg = "#e8fdf0" if is_buy else "#ffebee"
+        border = "#00c853" if is_buy else "#ff1744"
+        label = "شراء BUY ▲" if is_buy else "بيع SELL ▼"
+        st.markdown(f"""
+        <div style="background:{bg}; border:2px solid {border}; border-radius:15px; padding:15px; margin-top:15px;">
+            <div style="display:flex; justify-content:space-between;"><b style="font-size:18px;">{label}</b><b>ثقة: {signal['conf']}%</b></div>
+            <div style="margin-top:10px; font-size:14px;">🕯️ {signal['candle']}<br>📰 {signal['news']}</div>
+            <div style="display:flex; gap:10px; margin-top:12px; text-align:center;">
+                <div style="flex:1; background:white; border-radius:10px; padding:8px;"><div style="font-size:11px;">دخول</div><b>{entry:,.2f}</b></div>
+                <div style="flex:1; background:white; border-radius:10px; padding:8px;"><div style="font-size:11px; color:red;">وقف</div><b>{sl:,.2f}</b></div>
+                <div style="flex:1; background:white; border-radius:10px; padding:8px;"><div style="font-size:11px; color:green;">هدف 1</div><b>{tp1:,.2f}</b></div>
+                <div style="flex:1; background:white; border-radius:10px; padding:8px;"><div style="font-size:11px; color:green;">هدف 2</div><b>{tp2:,.2f}</b></div>
+                <div style="flex:1; background:white; border-radius:10px; padding:8px;"><div style="font-size:11px; color:green;">هدف 3</div><b>{tp3:,.2f}</b></div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.info(f"⏳ لا توجد صفقة الآن - {signal['candle']} | {signal['news']}")
 def get_gold_price():
     try:
         r = requests.get("https://data-asg.goldprice.org/db/XAUUSD.json", timeout=5).json()
