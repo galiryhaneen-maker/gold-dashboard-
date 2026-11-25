@@ -14,7 +14,30 @@ if not st.session_state.auth and st.button("دخول", use_container_width=True)
 if not st.session_state.auth: st.stop()
 if st.button("تحديث", use_container_width=True): st.cache_data.clear(); st.rerun()
 st.write("اخر تحديث: " + datetime.now().strftime("%H:%M:%S"))
-st.title("Gold Pro - 3 جداول")
+def get_gold_price():
+    try:
+        r = requests.get("https://data-asg.goldprice.org/db/XAUUSD.json", timeout=5).json()
+        return r["items"][0]["curr"], r["items"][0]["chg"]
+    except:
+        return None, None
+
+price, change = get_gold_price()
+
+col_title, col_price = st.columns([2, 1])
+with col_title:
+    st.title("Gold Pro - 3 جداول")
+with col_price:
+    if price:
+        color = "green" if change >= 0 else "red"
+        arrow = "▲" if change >= 0 else "▼"
+        st.markdown(f"""
+        <div style="background:#e8fdf0; border:2px solid #00c853; border-radius:15px; padding:10px; text-align:center;">
+            <div style="font-size:12px; color:#555;">سعر الذهب اللحظي</div>
+            <div style="font-size:22px; font-weight:bold;">${price:,.2f}</div>
+            <div style="color:{color}; font-weight:bold;">{arrow} {change:.2f} $</div>
+            <div style="font-size:10px; color:#888;">XAU/USD - LIVE</div>
+        </div>
+        """, unsafe_allow_html=True) 
 def get_gold_price():
     try:
         r = requests.get("https://data-asg.goldprice.org/db/XAUUSD.json", timeout=5).json()
