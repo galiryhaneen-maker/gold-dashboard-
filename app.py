@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import yfinance as yf
 import feedparser
+import requests
 import plotly.graph_objects as go
 from datetime import datetime
 st.set_page_config(page_title="Gold Pro", layout="wide")
@@ -14,6 +15,25 @@ if not st.session_state.auth: st.stop()
 if st.button("تحديث", use_container_width=True): st.cache_data.clear(); st.rerun()
 st.write("اخر تحديث: " + datetime.now().strftime("%H:%M:%S"))
 st.title("Gold Pro - 3 جداول")
+def get_gold_price():
+    try:
+        r = requests.get("https://data-asg.goldprice.org/db/XAUUSD.json", timeout=5).json()
+        return r["items"][0]["curr"], r["items"][0]["chg"]
+    except:
+        return None, None
+
+price, change = get_gold_price()
+if price:
+    color = "green" if change >= 0 else "red"
+    arrow = "▲" if change >= 0 else "▼"
+    st.markdown(f"""
+    <div style="background:#e8fdf0; border:2px solid #00c853; border-radius:15px; padding:12px; text-align:center;">
+        <div style="font-size:13px; color:#555;">Real-time Gold Price</div>
+        <div style="font-size:26px; font-weight:bold;">${price:,.2f}</div>
+        <div style="color:{color}; font-weight:bold;">{arrow} {change:.2f} $</div>
+        <div style="font-size:11px; color:#888;">XAU/USD - LIVE</div>
+    </div>
+    """, unsafe_allow_html=True)
 def get_news(url): feed = feedparser.parse(url); return feed, [e.title.lower() for e in feed.entries[:10]]
 def score_titles(titles): pos_w = ["rise", "surge", "gain", "bullish", "rally", "jump", "rebound", "haven", "record"]; neg_w = ["fall", "falls", "drop", "drops", "bearish", "decline", "crash", "plunge", "slump", "tumble"]; p = sum(1 for t in titles if any(" " + w + " " in " " + t + " " for w in pos_w) and not any(" " + w + " " in " " + t + " " for w in neg_w)); n = sum(1 for t in titles if any(" " + w + " " in " " + t + " " for w in neg_w) and not any(" " + w + " " in " " + t + " " for w in pos_w)); return p, n
 feed_eco, tit_eco = get_news("https://news.google.com/rss/search?q=gold+inflation+interest+dollar&hl=en&gl=US&ceid=US:en")
