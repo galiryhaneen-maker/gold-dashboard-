@@ -32,21 +32,22 @@ if not st.session_state.auth:
     st.stop()
 
 # ===== السعر اللحظي - 3 مصادر + حماية كاملة =====
-@st.cache_data(ttl=30)
+@st.cache_data(ttl=20)
 def get_gold_price():
-    # مصدر 1 - GoldPrice.org
+    # مصدر 1 الجديد - شغال على Streamlit
+    try:
+        r = requests.get("https://api.gold-api.com/price/XAU", timeout=5, headers={"User-Agent": "Mozilla/5.0"}).json()
+        return float(r["price"]), float(r.get("change24h", 0))
+    except Exception as e:
+        st.caption(f"مصدر 1 فشل: {e}")
+        pass
+    # مصدر 2 - goldprice.org
     try:
         r = requests.get("https://data-asg.goldprice.org/db/XAUUSD.json", timeout=4, headers={"User-Agent": "Mozilla/5.0"}).json()
         return float(r["items"][0]["curr"]), float(r["items"][0]["chg"])
     except:
         pass
-    # مصدر 2 - Metals.live
-    try:
-        r = requests.get("https://api.metals.live/v1/spot?metals=gold&currency=USD", timeout=4).json()
-        return float(r[0]["price"]), 0.0
-    except:
-        pass
-    # مصدر 3 - Yahoo Finance - خفيف
+    # مصدر 3 - yfinance
     try:
         d = yf.download("GC=F", period="1d", interval="5m", progress=False, auto_adjust=False)
         if isinstance(d.columns, pd.MultiIndex):
