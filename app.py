@@ -199,13 +199,13 @@ sig_p, sig_i = TF_MAP[sig_tf_choice]
 sig_h1 = analyze_tf(sig_p, sig_i, news_score, risk_money)
 if sig_h1 is None:
     sig_h1 = empty_result(price)
-    if price and sig_h1:
-        diff = price - sig_h1["last"]
-        sig_h1["last"] = float(price)
-        sig_h1["sl"] = float(sig_h1["sl"] + diff)
-        sig_h1["tp1"] = float(sig_h1["tp1"] + diff)
-        sig_h1["tp2"] = float(sig_h1["tp2"] + diff)
-        sig_h1["tp3"] = float(sig_h1["tp3"] + diff)
+if price and sig_h1:
+    diff = price - sig_h1["last"]
+    sig_h1["last"] = float(price)
+    sig_h1["sl"] = float(sig_h1["sl"] + diff)
+    sig_h1["tp1"] = float(sig_h1["tp1"] + diff)
+    sig_h1["tp2"] = float(sig_h1["tp2"] + diff)
+    sig_h1["tp3"] = float(sig_h1["tp3"] + diff)
 
 if sig_h1["direction"] != "انتظار WAIT":
     is_buy = sig_h1["direction"] == "شراء BUY"
